@@ -1,0 +1,80 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Setup minikube
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - exa
+          - fd-find
+          - fzf
+          - jq
+          - telnet
+        state: latest
+        update_cache: true
+    - name: Install k3s binary
+      get_url:
+        url: https://gitlab.com/seguri/static/-/raw/main/k3s
+        checksum: sha256:https://gitlab.com/seguri/static/-/raw/main/k3s.sha256sum
+        dest: /usr/local/bin/k3s
+        owner: root
+        group: root
+        mode: 0755
+    - name: Copy k3s systemd service file
+      copy:
+        dest: /etc/systemd/system/k3s.service
+        owner: root
+        group: root
+        mode: 0644
+        content: |
+          [Unit]
+          Description=Lightweight Kubernetes
+          Documentation=https://k3s.io
+          Wants=network-online.target
+          After=network-online.target
+
+          [Install]
+          WantedBy=multi-user.target
+
+          [Service]
+          Type=notify
+          EnvironmentFile=-/etc/default/%N
+          EnvironmentFile=-/etc/sysconfig/%N
+          EnvironmentFile=-/etc/systemd/system/%N.service.env
+          KillMode=process
+          Delegate=yes
+          # Having non-zero Limit*s causes performance problems due to accounting overhead
+          # in the kernel. We recommend using cgroups to do container-local accounting.
+          LimitNOFILE=1048576
+          LimitNPROC=infinity
+          LimitCORE=infinity
+          TasksMax=infinity
+          TimeoutStartSec=0
+          Restart=always
+          RestartSec=5s
+          ExecStartPre=/bin/sh -xc '! /usr/bin/systemctl is-enabled --quiet nm-cloud-setup.service'
+          ExecStartPre=-/sbin/modprobe br_netfilter
+          ExecStartPre=-/sbin/modprobe overlay
+          ExecStart=/usr/local/bin/k3s server
+    - name: Enable IPv6 docker registry
+      copy:
+        dest: /etc/rancher/k3s/registries.yaml
+        owner: root
+        group: root
+        mode: 0644
+        content: |
+          mirrors:
+            docker.io:
+              endpoint:
+                - "https://registry.ipv6.docker.com"
+    - name: Enable and check k3s systemd service
+      systemd:
+        name: k3s
+        daemon_reload: yes
+        state: restarted
+        enabled: yes
+    - name: Wait for node-token
+      wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
