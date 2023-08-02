@@ -1,0 +1,69 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Setup minikube
+  hosts: all
+  become: yes
+  tasks:
+    - name: Uninstall unwanted packages
+      apt:
+        name: "{{ item }}"
+        state: absent
+      vars:
+        unwanted:
+          - "docker.io"
+          - "docker-doc"
+          - "docker-compose"
+          - "podman-docker"
+          - "containerd"
+          - "runc"
+      loop: "{{ unwanted }}"
+    - name: Add Docker GPG apt key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+    - name: Update apt and install docker-ce
+      apt:
+        name:
+          - python3-pip
+          - docker-ce
+        state: latest
+        update_cache: true
+    - name: Install Docker module for Python
+      pip:
+        name: docker
+    - name: Add current user to the docker group
+      user:
+        # TODO Make this a variable
+        name: mark
+        groups: docker
+        append: yes
+    - name: Configure Docker IPv6 repository
+      copy:
+        dest: /etc/docker/daemon.json
+        content: "{{ json | to_nice_json }}"
+      vars:
+        # Remember that YAML is a superset of JSON
+        json:
+          registry-mirrors:
+            - "https://registry.ipv6.docker.com"
+      register: docker_daemon_json
+    - name: Restart Docker service
+      service:
+        name: docker
+        state: restarted
+      when: docker_daemon_json.changed
+    - name: Install minikube
+      apt:
+        deb: "https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb"
+        state: present
+    - name: Let juju/mutex write any /tmp folder
+      ansible.posix.sysctl:
+        name: fs.protected_regular
+        value: "0"
+        sysctl_set: true
+        state: present
+        reload: true

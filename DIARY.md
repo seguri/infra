@@ -34,4 +34,8 @@ Running an IPV6 only server requires additional work, e.g. GitHub doesn't suppor
 I abandoned the idea of running ansible directly on the server itself.
 Now that 1P SSH + IPV6 works flawlessly, I'll install ansible on my laptop and issue commands directly from there.
 
+## Minikube
+
+I wrote a playbook to install it, then I switched to k3s. Something wasn't working (maybe my VPS is too weak).
+
 [cloud-init]: https://community.hetzner.com/tutorials/basic-cloud-config
