@@ -1,9 +1,13 @@
 # infra
 
-## Install
+Here I play with Ansible to setup my VPS with different configurations.
+
+## GitHub configuration
+
+Don't forget to setup 1P+SSH configuration:
 
 ```sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/seguri/infra/HEAD/install.sh)"
+git remote set-url origin github:seguri/infra.git
 ```
 
 ## Thanks to
