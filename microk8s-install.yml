@@ -1,0 +1,130 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Setup Canonical's MicroK8s
+  hosts: all
+  become: true
+  vars:
+    spec_acme_email: "{{ lookup('env', 'SPEC_ACME_EMAIL') }}"
+  tasks:
+    - name: Install snap
+      ansible.builtin.apt:
+        name: snapd=2.58+22.04.1
+
+    - name: Expose HTTP port
+      community.general.ufw:
+        rule: allow
+        port: 80
+        proto: tcp
+        comment: "Allow access to HTTP port"
+
+    - name: Expose HTTPS port
+      community.general.ufw:
+        rule: allow
+        port: 443
+        proto: tcp
+        comment: "Allow access to HTTPS port"
+
+    - name: Expose kubernetes API
+      community.general.ufw:
+        rule: allow
+        port: 16443
+        proto: tcp
+        comment: "Allow access to kubernetes API"
+
+    - name: Setup aliases (mark)
+      become: false
+      ansible.builtin.copy:
+        dest: /home/mark/.bash_aliases
+        content: |
+          alias ..='cd ..'
+          alias ...='cd ../..'
+          alias iddqd='sudo su -'
+          alias l='ls -lA'
+        mode: "0644"
+
+    - name: Setup aliases (root)
+      ansible.builtin.copy:
+        dest: /root/.bash_aliases
+        content: |
+          alias ..='cd ..'
+          alias ...='cd ../..'
+          alias l='ls -lA'
+          alias k='kubectl'
+          alias kgp='kubectl get pods'
+          alias ktoken='kubectl create token default'
+        mode: "0644"
+
+    - name: Install microk8s
+      community.general.snap:
+        name: microk8s
+        classic: true
+        channel: latest/stable
+
+    - name: Wait for microk8s to be ready
+      ansible.builtin.command: microk8s.status --wait-ready
+      changed_when: false
+      register: mk8sstatusout
+      failed_when:
+        - "'This MicroK8s deployment is acting as a node in a cluster.' not in mk8sstatusout.stdout_lines"
+        - mk8sstatusout.rc > 0
+
+    - name: Enable 'dashboard' addon
+      ansible.builtin.command: microk8s.enable dashboard
+      changed_when: false
+      register: mk8senableout
+      failed_when:
+        - mk8senableout.rc > 0
+
+    - name: Enable 'ingress' addon
+      ansible.builtin.command: microk8s.enable ingress
+      changed_when: false
+      register: mk8senableout
+      failed_when:
+        - mk8senableout.rc > 0
+
+    - name: Enable 'helm3' addon
+      ansible.builtin.command: microk8s.enable helm3
+      changed_when: false
+      register: mk8senableout
+      failed_when:
+        - mk8senableout.rc > 0
+
+    - name: Enable 'cert-manager' addon
+      ansible.builtin.command: microk8s.enable cert-manager
+      changed_when: false
+      register: mk8senableout
+      failed_when:
+        - mk8senableout.rc > 0
+
+    - name: Create kubectl alias
+      ansible.builtin.command: snap alias microk8s.kubectl kubectl
+      changed_when: false
+
+    - name: Create helm alias
+      ansible.builtin.command: snap alias microk8s.helm helm
+      changed_when: false
+
+    - name: Add jetstack Helm repo
+      ansible.builtin.command: microk8s helm3 repo add jetstack https://charts.jetstack.io
+      changed_when: false
+      register: mk8shelmout
+      failed_when:
+        - mk8shelmout.rc > 0
+
+    - name: Install cert-manager using Helm
+      kubernetes.core.helm:
+        name: cert-manager
+        namespace: cert-manager
+        chart_ref: jetstack/cert-manager
+        chart_version: v1.13.2
+        set_values:
+          - value: installCRDs=true
+          - value: ingressShim.defaultIssuerName=letsencrypt-production
+          - value: ingressShim.defaultIssuerKind=ClusterIssuer
+          - value: ingressShim.defaultIssuerGroup=cert-manager.io
+        state: present
+        update_repo_cache: true
+
+    - name: Create Let's Encrypt issuer
+      kubernetes.core.k8s:
+        src: resources/production-issuer.yaml

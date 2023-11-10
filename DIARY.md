@@ -67,11 +67,15 @@ After abandoning k3s because of its many problems with IPv6, I switched to micro
 
 The playbook was easy to write and covers everything.
 
-I was able to remotely access the dashboard with:
+I've configured `kubectl` on my laptop as shown [here](help/Merge%20kubectl%20configs.md).
 
-```
-kubectl port-forward --insecure-skip-tls-verify -n kube-system service/kubernetes-dashboard 10443:443 --address 0.0.0.0
-```
+To access the remote dashboard:
+
+- `kubectl port-forward --insecure-skip-tls-verify --context microk8s -n kube-system service/kubernetes-dashboard 10443:443 --address 0.0.0.0`
+- open https://localhost:10443/
+- in the dashboard, select "kubeconfig" authentication and point to `~/.kube/config`
+
+To remove the `--insecure-skip-tls-verify` flag, ...
 
 [cloud-init]: https://community.hetzner.com/tutorials/basic-cloud-config
 [seguri-static]: https://gitlab.com/seguri/static
