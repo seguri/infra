@@ -77,6 +77,22 @@ To access the remote dashboard:
 
 To remove the `--insecure-skip-tls-verify` flag, ...
 
+## The end?
+
+I've destroyed the VPS at the end of January 2024.
+I don't have time to make all of this work.
+The lack of concrete help from all the communities I've encountered (k3s, microk8s) made it impossible to get this running in a reasonable time.
+
+Ideas for the future:
+- Just go with Heroku or railway.app (I'd go immediately if I could find a free postgres cloud service)
+- VPS with docker & trafik/nginx. Some old guides:
+    - https://medium.com/@containeroo/traefik-2-0-docker-a-simple-step-by-step-guide-e0be0c17cfa5
+    - https://medium.com/@containeroo/traefik-2-0-docker-an-advanced-guide-d098b9e9be96
+    - https://www.shawndsilva.com/blog/systems-administration-and-devops/hosting-multiple-full-stack-web-projects-on-one-vps-using-nginx-and-docker
+- If you upgrade your NAS, you can run docker images there
+- Run a proxmox + tailscale at home
+
+
 [cloud-init]: https://community.hetzner.com/tutorials/basic-cloud-config
 [seguri-static]: https://gitlab.com/seguri/static
 [k3s-hello-world]: https://www.jeffgeerling.com/blog/2022/quick-hello-world-http-deployment-testing-k3s-and-traefik
